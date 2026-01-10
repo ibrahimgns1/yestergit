@@ -2,5 +2,17 @@
 name = "yestergit"
 version = "0.1.0"
 edition = "2024"
+authors = ["Ibrahim gunes igunes2103@gmail.com"]
+description = "A CLI tool to generate daily reports for agile meetings from git logs locally."
 
 [dependencies]
+anyhow = "1.0.100"
+chrono = { version = "0.4.42", features = ["serde"] }
+clap = { version = "4.5.54", features = ["derive"] }
+directories = "6.0.0"
+git2 = "0.20.3"
+rayon = "1.11.0"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+thiserror = "2.0.17"
+walkdir = "2.5.0"
