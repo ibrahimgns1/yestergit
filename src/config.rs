@@ -10,8 +10,8 @@ pub struct Args {
     #[arg(short, long, global = true)]
     pub author: Option<String>,
 
-    #[arg(short, long, default_value_t = 1, global = true)]
-    pub days: u64,
+    #[arg(short, long, global = true)]
+    pub days: Option<u64>,
 
     #[arg(long, default_value_t = false, global = true)]
     pub verbose: bool,
@@ -24,7 +24,7 @@ pub enum Commands {
         path: PathBuf,
     },
     Check {
-        #[arg(short, long)]
+        #[arg(short, long, default_value = ".")]
         path: PathBuf,
     },
     List,

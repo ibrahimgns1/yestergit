@@ -1,9 +1,9 @@
 use anyhow::{Context, Result};
-use chrono::{DateTime, Duration, Local, TimeZone, Utc};
+use chrono::{DateTime, Local, TimeZone, Utc};
 use git2::{Repository, Sort};
 use std::path::PathBuf;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CommitLog {
     pub message: String,
     pub author: String,
@@ -13,7 +13,7 @@ pub struct CommitLog {
 
 pub fn fetch_commits(
     repo_path: &PathBuf,
-    days: u64,
+    since: DateTime<Utc>,
     author_filter: Option<String>,
 ) -> Result<Vec<CommitLog>> {
     let repo = Repository::open(repo_path)
@@ -28,8 +28,6 @@ pub fn fetch_commits(
     revwalk.set_sorting(Sort::TIME)?;
 
     let mut logs = Vec::new();
-    let now = Utc::now();
-    let days_ago = now - Duration::days(days as i64);
 
     for oid in revwalk {
         let oid = oid?;
@@ -38,7 +36,7 @@ pub fn fetch_commits(
         let commit_time_raw = commit.time();
         let commit_datetime_utc = Utc.timestamp_opt(commit_time_raw.seconds(), 0).unwrap();
 
-        if commit_datetime_utc < days_ago {
+        if commit_datetime_utc < since {
             break;
         }
 
@@ -54,12 +52,11 @@ pub fn fetch_commits(
         let full_message = commit.message().unwrap_or("");
         let short_message = full_message.lines().next().unwrap_or("").to_string();
 
-        let commit_date_local: DateTime<Local> = DateTime::from(commit_datetime_utc);
 
         logs.push(CommitLog {
             message: short_message,
             author: author_name,
-            date: commit_date_local,
+            date: DateTime::from(commit_datetime_utc),
             hash: oid.to_string()[0..7].to_string(),
         });
     }
