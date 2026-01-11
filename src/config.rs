@@ -32,4 +32,19 @@ pub enum Commands {
     Note {
         message: String,
     },
+
+    Summarize,
+
+    Config {
+        #[arg(long)]
+        set_key: Option<String>,
+        #[arg(long)]
+        set_url: Option<String>,
+        #[arg(long)]
+        set_model: Option<String>,
+        #[arg(long)]
+        set_prompt: Option<String>,
+        #[arg(long)]
+        set_lang: Option<String>,
+    },
 }

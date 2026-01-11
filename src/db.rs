@@ -4,6 +4,7 @@ use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -35,12 +36,30 @@ impl Database {
 
     pub fn save(&self) -> Result<()> {
         let path = get_db_path()?;
+        self.save_to(&path)
+    }
 
+    pub fn save_to(&self, path: &PathBuf) -> Result<()> {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
+
         let content = serde_json::to_string_pretty(self)?;
-        fs::write(path, content).context("Can not saved to db.")?;
+
+        let parent = path.parent().unwrap_or_else(|| std::path::Path::new("."));
+        let mut temp_file = tempfile::Builder::new()
+            .prefix("yestergit_db_")
+            .suffix(".tmp")
+            .tempfile_in(parent)
+            .context("Failed to create temp file for db save")?;
+
+        temp_file
+            .write_all(content.as_bytes())
+            .context("Failed to write to temp db file")?;
+
+        temp_file.flush().context("Failed to flush temp db file")?;
+
+        temp_file.persist(path).context("Failed to replace db file")?;
 
         Ok(())
     }
@@ -61,6 +80,10 @@ impl Database {
             date: Utc::now(),
         });
     }
+
+    pub fn get_path() -> Result<PathBuf> {
+        get_db_path()
+    }
 }
 
 fn get_db_path() -> Result<PathBuf> {
@@ -71,4 +94,31 @@ fn get_db_path() -> Result<PathBuf> {
         .context("Config path does not exists.")?;
 
     Ok(proj_dirs.config_dir().join("db.json"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_save_to_atomic() {
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test_db.json");
+
+        let mut db = Database::default();
+        db.add_entry("Test Note".to_string());
+
+        db.save_to(&db_path).unwrap();
+        assert!(db_path.exists());
+
+        let content = fs::read_to_string(&db_path).unwrap();
+        assert!(content.contains("Test Note"));
+
+        db.add_entry("Second Note".to_string());
+        db.save_to(&db_path).unwrap();
+
+        let content_new = fs::read_to_string(&db_path).unwrap();
+        assert!(content_new.contains("Second Note"));
+    }
 }
