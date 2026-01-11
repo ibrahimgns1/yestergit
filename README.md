@@ -4,12 +4,19 @@ yestergit is a CLI tool for developers who forget what they actually did during 
 
 ## Installation
 
-To use `yestergit` from anywhere, install it globally via cargo:
+First, clone the repository and navigate into it:
 
 ```bash
-# Inside the project directory
+git clone https://github.com/ibrahimgns1/yestergit.git
+cd yestergit
+```
+
+Then, install it globally via cargo:
+
+```bash
 cargo install --path .
 ```
+
 
 ## Quick Start
 
