@@ -27,6 +27,21 @@ pub fn fetch_commits(
 
     revwalk.set_sorting(Sort::TIME)?;
 
+    let filters: Vec<String> = match author_filter {
+        Some(f) => vec![f.to_lowercase()],
+        None => {
+            let mut auto_filters = Vec::new();
+            if let Ok(config) = repo.config() {
+                if let Ok(name) = config.get_string("user.name") {
+                    auto_filters.push(name.to_lowercase());
+                }
+                if let Ok(email) = config.get_string("user.email") {
+                    auto_filters.push(email.to_lowercase());
+                }
+            }
+            auto_filters
+        }
+    };
     let mut logs = Vec::new();
 
     for oid in revwalk {
@@ -42,16 +57,21 @@ pub fn fetch_commits(
 
         let author = commit.author();
         let author_name = author.name().unwrap_or("Unknown").to_string();
+        let author_email = author.email().unwrap_or("Unknown").to_string();
 
-        if let Some(filter) = &author_filter
-            && !author_name.to_lowercase().contains(&filter.to_lowercase())
-        {
-            continue;
+        if !filters.is_empty() {
+            let name_lower = author_name.to_lowercase();
+            let email_lower = author_email.to_lowercase();
+            let is_match = filters
+                .iter()
+                .any(|f| name_lower.contains(f) || email_lower.contains(f));
+
+            if !is_match {
+                continue;
+            }
         }
-
         let full_message = commit.message().unwrap_or("");
         let short_message = full_message.lines().next().unwrap_or("").to_string();
-
 
         logs.push(CommitLog {
             message: short_message,
@@ -82,10 +102,7 @@ mod tests {
         let tree_id = index.write_tree().unwrap();
         let tree = repo.find_tree(tree_id).unwrap();
 
-        let time = Time::new(
-            Utc::now().timestamp() + time_offset_secs,
-            0,
-        );
+        let time = Time::new(Utc::now().timestamp() + time_offset_secs, 0);
         let signature = Signature::new(author, "email@example.com", &time).unwrap();
 
         let parent_commits = match repo.head() {
@@ -163,11 +180,21 @@ mod tests {
 
         let since = Utc::now() - chrono::Duration::hours(1);
 
-        let alice_logs = fetch_commits(&temp_dir.path().to_path_buf(), since, Some("Alice".to_string())).unwrap();
+        let alice_logs = fetch_commits(
+            &temp_dir.path().to_path_buf(),
+            since,
+            Some("Alice".to_string()),
+        )
+        .unwrap();
         assert_eq!(alice_logs.len(), 1);
         assert_eq!(alice_logs[0].author, "Alice");
 
-        let bob_logs = fetch_commits(&temp_dir.path().to_path_buf(), since, Some("Bob".to_string())).unwrap();
+        let bob_logs = fetch_commits(
+            &temp_dir.path().to_path_buf(),
+            since,
+            Some("Bob".to_string()),
+        )
+        .unwrap();
         assert_eq!(bob_logs.len(), 1);
         assert_eq!(bob_logs[0].author, "Bob");
     }
